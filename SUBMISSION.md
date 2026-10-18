@@ -4,8 +4,8 @@
 - Student identifier: 23BCS10061
 - Project: Todo API (FastAPI, SQLite, Kubernetes)
 - Repository: https://github.com/VikramAditya144/advanced_cloud_project
-- Baseline commit: `52a6193a042131befdda0d90081168527cd1cce2`
-- Pull request: add the PR link here after creating it.
+- Baseline commit: `5afad15cb3b320af82065a110fe37bebe6a234c5`
+- Pull request: https://github.com/VikramAditya144/advanced_cloud_project/pull/1
 - Final commit: copy the hash from `git rev-parse HEAD` after the last project change.
 
 ## Project summary
