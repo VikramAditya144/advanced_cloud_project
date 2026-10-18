@@ -1,8 +1,8 @@
-# Todo API
+# Advanced Cloud Project
 
-A small REST API for a personal todo list. It uses FastAPI and stores todos in SQLite. The Kubernetes setup runs one API pod and keeps the database file on a persistent volume.
+This is my todo-list API for the Advanced DevOps project. I built it with FastAPI and SQLite. It runs as one instance, so I can keep the setup small and avoid running a separate database service.
 
-## Run it locally
+## Run locally
 
 You need Python 3.12 or newer.
 
@@ -13,9 +13,9 @@ pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-The API is at `http://localhost:8000`; its interactive docs are at `/docs`. By default, SQLite writes to `./data/todos.db`. Set `TODO_DB_PATH` to use another file.
+Open [http://localhost:8000/docs](http://localhost:8000/docs) to try the API. Todos are saved in `./data/todos.db`. Set `TODO_DB_PATH` if you want to use a different location.
 
-Run the checks with:
+To run the project checks:
 
 ```sh
 pytest -q
@@ -24,17 +24,15 @@ ruff format --check app tests
 pip-audit -r requirements-dev.txt
 ```
 
-## Endpoints
+## API
 
-| Method | Path | What it does |
-| --- | --- | --- |
-| `GET` | `/todos` | List todos |
-| `POST` | `/todos` | Add a todo, for example `{"title":"Read the guide"}` |
-| `GET` | `/todos/{id}` | Get one todo |
-| `PATCH` | `/todos/{id}` | Change its title or completion state |
-| `DELETE` | `/todos/{id}` | Delete it |
-| `GET` | `/health/live` | Check that the process is responding |
-| `GET` | `/health/ready` | Check that SQLite can be reached |
-| `GET` | `/metrics` | Read Prometheus request counts and durations |
+- `GET /todos` lists all todos.
+- `POST /todos` adds one. Send `{"title":"Read the project guide"}`.
+- `GET /todos/{id}` gets one todo.
+- `PATCH /todos/{id}` changes its title or sets `completed` to `true` or `false`.
+- `DELETE /todos/{id}` removes it.
+- `GET /health/live` checks that the app is responding.
+- `GET /health/ready` checks that SQLite is available.
+- `GET /metrics` returns Prometheus request counts and durations.
 
-There is no login or user separation. Keep the API on your machine or inside a private cluster; it is not ready for public access.
+There is no login or user separation, so keep the app on your own machine or inside a private cluster. Don't expose it directly to the internet.
