@@ -9,11 +9,11 @@ Requires Python 3.11 or newer.
 ```sh
 python -m venv .venv
 . .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-Open `http://localhost:8000/docs` for the interactive API. The database defaults to `./data/todos.db`; set `TODO_DB_PATH` to change it.
+Open `http://localhost:8000/docs` for the interactive API. The database defaults to `./data/todos.db`; set `TODO_DB_PATH` to change it. Run `pytest -q` and `ruff check app tests` to check the API and style.
 
 ## API
 

@@ -12,7 +12,7 @@ Fill in the student and repository fields before submitting. Keep the baseline c
 
 ## Change summary
 
-Added a FastAPI CRUD API backed by SQLite, container packaging, Kubernetes manifests with health probes and persistent storage, Prometheus metrics, CI checks and image builds, GHCR release publishing, and a manually dispatched Kubernetes deployment with rollout status. Design decisions, setup steps, rollback, security boundaries, and limitations are in [OPERATIONS.md](OPERATIONS.md).
+Added a FastAPI CRUD API backed by SQLite, container packaging, Kubernetes manifests with health probes and persistent storage, Prometheus metrics, automated API tests, CI checks and image builds, GHCR release publishing, and a manually dispatched Kubernetes deployment with rollout status. Design decisions, setup steps, rollback, security boundaries, and limitations are in [OPERATIONS.md](OPERATIONS.md).
 
 ## Run and access
 

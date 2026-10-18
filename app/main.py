@@ -139,7 +139,9 @@ def update_todo(todo_id: int, payload: TodoUpdate):
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="provide title or completed")
-    values = {"completed": int(value) if key == "completed" else value for key, value in updates.items()}
+    values = updates.copy()
+    if "completed" in values:
+        values["completed"] = int(values["completed"])
     assignments = ", ".join(f"{key} = ?" for key in values)
     with connect() as db:
         cursor = db.execute(f"UPDATE todos SET {assignments} WHERE id = ?", (*values.values(), todo_id))

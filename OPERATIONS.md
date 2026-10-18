@@ -24,7 +24,7 @@ Then use `http://localhost:8000/docs`. The cluster needs a default StorageClass 
 
 ## Delivery and release control
 
-The pull request workflow installs dependencies, checks style, compiles the application, and builds a container image. Merges to `main` publish a commit-addressed image to GitHub Container Registry (GHCR). The `Release and deploy` workflow also supports manual dispatch: its deploy job uses the image for the triggering commit and waits for the Kubernetes rollout. Configure a protected GitHub `production` environment and a `KUBECONFIG` Actions secret containing the deployment kubeconfig. The cluster must allow the workflow runner to reach its API server, and the package must be pullable by the cluster.
+The pull request workflow installs pinned development dependencies, checks style, runs API tests, compiles the application, and builds a container image. Merges to `main` publish a commit-addressed image to GitHub Container Registry (GHCR). The `Release and deploy` workflow also supports manual dispatch: its deploy job uses the image for the triggering commit and waits for the Kubernetes rollout. Configure a protected GitHub `production` environment and a `KUBECONFIG` Actions secret containing the deployment kubeconfig. The cluster must allow the workflow runner to reach its API server, and the package must be pullable by the cluster.
 
 Kubernetes tracks the previous Deployment revision. If rollout fails, inspect `kubectl -n todo rollout status deployment/todo-api` and pod events/logs, then use `kubectl -n todo rollout undo deployment/todo-api`. The immutable commit tag identifies what was released. A failed deployment does not automatically roll back; the operator performs the rollback.
 
