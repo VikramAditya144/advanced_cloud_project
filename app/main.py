@@ -5,11 +5,10 @@ import sqlite3
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 DB_PATH = Path(os.getenv("TODO_DB_PATH", "./data/todos.db"))
 REQUESTS = Counter("http_requests_total", "HTTP requests", ["method", "path", "status"])
@@ -45,10 +44,28 @@ app = FastAPI(title="Plain Todo API", version="1.0.0", lifespan=lifespan)
 class TodoCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
 
+    @field_validator("title")
+    @classmethod
+    def title_must_not_be_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("title cannot be blank")
+        return value
+
 
 class TodoUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     completed: bool | None = None
+
+    @field_validator("title")
+    @classmethod
+    def title_must_not_be_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError("title cannot be blank")
+        return value
 
 
 class Todo(BaseModel):
@@ -122,8 +139,6 @@ def update_todo(todo_id: int, payload: TodoUpdate):
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="provide title or completed")
-    if "title" in updates:
-        updates["title"] = updates["title"].strip()
     values = {"completed": int(value) if key == "completed" else value for key, value in updates.items()}
     assignments = ", ".join(f"{key} = ?" for key in values)
     with connect() as db:
