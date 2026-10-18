@@ -1,23 +1,19 @@
-# Submission record
+# Submission details
 
-Fill in the student and repository fields before submitting. Keep the baseline commit in Git history.
+Replace the bracketed items before submitting.
 
-- Student name: **[fill in]**
-- Student identifier: **[fill in]**
-- Project: **Plain Todo API — FastAPI and Kubernetes delivery**
-- Repository: **[add the published repository URL]**
-- Baseline commit: `52a6193a042131befdda0d90081168527cd1cce2` (empty repository before project implementation)
-- Pull request: **[add the single PR URL containing the baseline-to-final changes]**
-- Final commit: **[record `git rev-parse HEAD` after the final project change]**
+- Student name: [your name]
+- Student identifier: [your ID]
+- Project: Todo API (FastAPI, SQLite, Kubernetes)
+- Repository: [published repository URL]
+- Baseline commit: `52a6193a042131befdda0d90081168527cd1cce2`
+- Pull request: [single PR with the baseline and project changes]
+- Final commit: [copy the final `git rev-parse HEAD`]
 
-## Change summary
+## What changed
 
-Added a FastAPI CRUD API backed by SQLite, container packaging, Kubernetes manifests with health probes and persistent storage, Prometheus metrics, automated API tests, dependency security auditing, CI checks and image builds, GHCR release publishing, and a manually dispatched Kubernetes deployment with rollout status. Design decisions, setup steps, rollback, security boundaries, and limitations are in [OPERATIONS.md](OPERATIONS.md).
+The baseline was an empty repository. The project adds a FastAPI todo API, SQLite storage, a Docker image, Kubernetes manifests, health checks, Prometheus metrics, API tests, CI checks, a dependency audit, GHCR publishing, and a manual Kubernetes deployment workflow.
 
-## Run and access
+## How to run it
 
-See [README.md](README.md) for local setup and API examples. See [OPERATIONS.md](OPERATIONS.md) for container and Kubernetes deployment steps, pipeline configuration, and operational checks.
-
-## Existing DevOps at baseline
-
-The baseline was an empty repository with no application, deployment configuration, or delivery automation.
+See [README.md](README.md) for local setup and API examples. [OPERATIONS.md](OPERATIONS.md) covers Kubernetes, the workflows, rollback, and current limits.

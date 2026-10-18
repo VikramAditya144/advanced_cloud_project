@@ -1,4 +1,4 @@
-"""A small, single-process-friendly Todo API backed by SQLite."""
+"""FastAPI endpoints for a todo list stored in SQLite."""
 
 import os
 import sqlite3
@@ -8,11 +8,13 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 DB_PATH = Path(os.getenv("TODO_DB_PATH", "./data/todos.db"))
 REQUESTS = Counter("http_requests_total", "HTTP requests", ["method", "path", "status"])
-LATENCY = Histogram("http_request_duration_seconds", "HTTP request duration", ["method", "path"])
+LATENCY = Histogram(
+    "http_request_duration_seconds", "HTTP request duration", ["method", "path"]
+)
 
 
 def connect() -> sqlite3.Connection:
@@ -61,15 +63,21 @@ class TodoUpdate(BaseModel):
     @classmethod
     def title_must_not_be_blank(cls, value: str | None) -> str | None:
         if value is None:
-            return value
+            raise ValueError("title cannot be null")
         value = value.strip()
         if not value:
             raise ValueError("title cannot be blank")
         return value
 
+    @field_validator("completed")
+    @classmethod
+    def completed_must_not_be_null(cls, value: bool | None) -> bool | None:
+        if value is None:
+            raise ValueError("completed cannot be null")
+        return value
+
 
 class Todo(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
     id: int
     title: str
     completed: bool
@@ -77,14 +85,20 @@ class Todo(BaseModel):
 
 
 def as_todo(row: sqlite3.Row) -> Todo:
-    return Todo(id=row["id"], title=row["title"], completed=bool(row["completed"]), created_at=row["created_at"])
+    return Todo(
+        id=row["id"],
+        title=row["title"],
+        completed=bool(row["completed"]),
+        created_at=row["created_at"],
+    )
 
 
 @app.middleware("http")
 async def record_metrics(request: Request, call_next):
     started = time.perf_counter()
     response = await call_next(request)
-    path = request.url.path
+    route = request.scope.get("route")
+    path = route.path if route else request.url.path
     LATENCY.labels(request.method, path).observe(time.perf_counter() - started)
     REQUESTS.labels(request.method, path, str(response.status_code)).inc()
     return response
@@ -120,8 +134,10 @@ def list_todos():
 @app.post("/todos", response_model=Todo, status_code=status.HTTP_201_CREATED)
 def create_todo(payload: TodoCreate):
     with connect() as db:
-        cursor = db.execute("INSERT INTO todos (title) VALUES (?)", (payload.title.strip(),))
-        row = db.execute("SELECT * FROM todos WHERE id = ?", (cursor.lastrowid,)).fetchone()
+        cursor = db.execute("INSERT INTO todos (title) VALUES (?)", (payload.title,))
+        row = db.execute(
+            "SELECT * FROM todos WHERE id = ?", (cursor.lastrowid,)
+        ).fetchone()
     return as_todo(row)
 
 
@@ -144,7 +160,9 @@ def update_todo(todo_id: int, payload: TodoUpdate):
         values["completed"] = int(values["completed"])
     assignments = ", ".join(f"{key} = ?" for key in values)
     with connect() as db:
-        cursor = db.execute(f"UPDATE todos SET {assignments} WHERE id = ?", (*values.values(), todo_id))
+        cursor = db.execute(
+            f"UPDATE todos SET {assignments} WHERE id = ?", (*values.values(), todo_id)
+        )
         row = db.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
     if cursor.rowcount == 0:
         raise HTTPException(status_code=404, detail="todo not found")

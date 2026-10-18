@@ -1,46 +1,70 @@
-# Operations and project decisions
+# Running the project
 
-## Architecture and request path
+## How requests are handled
 
-A client sends HTTP requests to the FastAPI process on port 8000. The Kubernetes ClusterIP Service forwards traffic to the single Deployment pod. FastAPI validates request bodies, executes parameterized SQL statements against SQLite, and returns JSON. The database file is on a 1 GiB PVC mounted at `/data`; API logs go to standard output and Prometheus metrics are exposed at `/metrics`.
+Clients connect to the FastAPI app on port 8000. In Kubernetes, the `todo-api` Service sends traffic to the single pod. The app validates each request and reads or writes a SQLite database at `/data/todos.db`. That directory is backed by a 1 GiB persistent volume claim. Uvicorn logs go to standard output.
 
-SQLite keeps a learning project small and avoids operating a separate database. One replica and a `Recreate` deployment strategy suit a single-writer SQLite file. This is not a horizontally scalable or highly available database design. For concurrent replicas, stronger availability, or remote backups, move persistence to PostgreSQL and use multiple API replicas.
+This project uses SQLite to avoid running a separate database. It is a good fit for one pod and a small demo. The Deployment uses `Recreate` so two pods do not write to the same database file at once. The trade-off is a short interruption during an update. For multiple replicas, remote backups, or higher availability, move the data to PostgreSQL before scaling the API.
 
-## Configuration and Kubernetes
+## Run it in Kubernetes
 
-Runtime configuration uses `TODO_DB_PATH`; the same variable works locally and in the container. Kubernetes resources are in `k8s/`. The Deployment uses startup, liveness, and readiness probes, CPU/memory requests and limits, a non-root UID, a read-only root filesystem, a dropped Linux capability set, and no service account token. The Service is private to the cluster. Add an Ingress and TLS termination only when an external endpoint is required.
-
-Apply locally after building the image and making it available to your cluster:
+You need Docker and a Kubernetes cluster with a default StorageClass that can provision a 1 GiB `ReadWriteOnce` volume. Build the image and make it available to the cluster. For kind, the extra load command copies the image into the cluster:
 
 ```sh
 docker build -t todo-api:local .
-# For kind: kind load docker-image todo-api:local
+kind load docker-image todo-api:local  # kind only
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/app.yaml
 kubectl -n todo port-forward service/todo-api 8000:80
 ```
 
-Then use `http://localhost:8000/docs`. The cluster needs a default StorageClass that supports a 1 GiB `ReadWriteOnce` PVC.
+Open `http://localhost:8000/docs` to try the API. The Kubernetes Service is private to the cluster. Add an Ingress and TLS if you later need outside access.
 
-## Delivery and release control
+The pod runs as UID 10001, drops Linux capabilities, has a read-only root filesystem, and does not receive a service account token. Startup, liveness, and readiness probes check the app and its database connection. CPU and memory requests and limits are set in `k8s/app.yaml`.
 
-The pull request workflow installs pinned development dependencies, checks style, runs API tests, audits pinned dependencies, compiles the application, and builds a container image. Merges to `main` publish a commit-addressed image to GitHub Container Registry (GHCR). The `Release and deploy` workflow also supports manual dispatch: its deploy job uses the image for the triggering commit and waits for the Kubernetes rollout. Configure a protected GitHub `production` environment and a `KUBECONFIG` Actions secret containing the deployment kubeconfig. The cluster must allow the workflow runner to reach its API server, and the package must be pullable by the cluster.
+## Build and deploy workflow
 
-Kubernetes tracks the previous Deployment revision. If rollout fails, inspect `kubectl -n todo rollout status deployment/todo-api` and pod events/logs, then use `kubectl -n todo rollout undo deployment/todo-api`. The immutable commit tag identifies what was released. A failed deployment does not automatically roll back; the operator performs the rollback.
+The `CI` workflow runs on pull requests and pushes to `main`. It installs the pinned development dependencies, runs Ruff and the API tests, checks dependencies for known vulnerabilities, compiles the app, and builds the image.
 
-## Signals and verification
+The `Release and deploy` workflow publishes an image tagged with the commit SHA to GHCR when a commit reaches `main`. To deploy, run that workflow manually. Its deploy job applies the Kubernetes files, updates the Deployment to the SHA-tagged image, and waits for the rollout.
 
-`/health/live` reports process liveness. `/health/ready` checks that SQLite can answer a query, so Kubernetes only sends Service traffic to a usable pod. `/metrics` exposes request totals and request duration in Prometheus format; the Service has standard scrape annotations. Uvicorn writes request and error logs to stdout for `kubectl logs` or a cluster log collector. A dashboard or alerting stack is intentionally not bundled: install Prometheus-compatible collection to retain and visualize metrics.
+Before using the deploy job, set up a GitHub `production` environment and add a `KUBECONFIG` Actions secret. The cluster API must be reachable from the GitHub runner, and the cluster must be allowed to pull the GHCR image. Protect the environment with required reviewers if deployments should wait for approval.
 
-A basic smoke check after port-forwarding:
+If an update fails, check the rollout and pod logs:
+
+```sh
+kubectl -n todo rollout status deployment/todo-api
+kubectl -n todo get pods
+kubectl -n todo logs deployment/todo-api
+```
+
+To return to the previous Deployment revision, run:
+
+```sh
+kubectl -n todo rollout undo deployment/todo-api
+```
+
+Rollback is a manual step; the workflow does not do it automatically.
+
+## Health, metrics, and logs
+
+`/health/live` checks that the process responds. `/health/ready` checks that the database can answer a query. Kubernetes uses these endpoints before restarting a pod or sending it traffic.
+
+`/metrics` exposes request totals and durations. The Service has Prometheus scrape annotations, but this repo does not install Prometheus or provide a dashboard. Uvicorn writes logs to stdout; use `kubectl logs` or a cluster log collector to read them. There is no tracing setup because this version is a single API with one local database.
+
+After port-forwarding, try a quick check:
 
 ```sh
 curl -sS http://localhost:8000/health/ready
-curl -sS -X POST http://localhost:8000/todos -H 'Content-Type: application/json' -d '{"title":"Check the release"}'
+curl -sS -X POST http://localhost:8000/todos \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Check the release"}'
 curl -sS http://localhost:8000/todos
 curl -sS http://localhost:8000/metrics | head
 ```
 
-## Security and known limitations
+## Security and limits
 
-The API has no authentication or user separation. Keep the Service private and do not expose it to an untrusted network without authentication and TLS. No credentials are stored in the application. CI uses the short-lived GitHub token to publish; deployment cluster access is supplied through the protected environment secret and never committed. CI audits the pinned Python runtime and development dependencies for known vulnerabilities. It does not scan operating-system packages in the container image or generate a software bill of materials. SQLite on a single PVC is suitable for demonstration, not production backups or multi-replica failover.
+The API has no authentication or user separation, so keep it private. It stores no credentials. CI uses GitHub's short-lived token to publish the image; the cluster credential stays in the protected GitHub environment secret.
+
+CI audits Python dependencies. It does not scan operating-system packages in the image or create a software bill of materials. The SQLite file on one volume is not a backup or a high-availability plan. Back it up separately if the data matters.

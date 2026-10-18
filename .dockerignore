@@ -4,3 +4,6 @@ __pycache__
 *.py[cod]
 *.db
 tests
+.env
+requirements-dev.txt
+pytest.ini

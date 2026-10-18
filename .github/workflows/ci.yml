@@ -19,6 +19,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: ruff check app tests
+      - run: ruff format --check app tests
       - run: pytest -q
       - run: pip-audit -r requirements-dev.txt
       - run: python -m compileall -q app

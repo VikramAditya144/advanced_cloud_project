@@ -1,28 +1,40 @@
-# Plain Todo API
+# Todo API
 
-A small FastAPI service for creating, listing, updating, and deleting todos. SQLite keeps the project easy to run locally; a mounted volume stores data in Kubernetes.
+A small REST API for a personal todo list. It uses FastAPI and stores todos in SQLite. The Kubernetes setup runs one API pod and keeps the database file on a persistent volume.
 
-## Run locally
+## Run it locally
 
-Requires Python 3.11 or newer.
+You need Python 3.12 or newer.
 
 ```sh
-python -m venv .venv
+python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-Open `http://localhost:8000/docs` for the interactive API. The database defaults to `./data/todos.db`; set `TODO_DB_PATH` to change it. Run `pytest -q` and `ruff check app tests` to check the API and style.
+The API is at `http://localhost:8000`; its interactive docs are at `/docs`. By default, SQLite writes to `./data/todos.db`. Set `TODO_DB_PATH` to use another file.
 
-## API
+Run the checks with:
 
-- `GET /todos` lists todos.
-- `POST /todos` with `{"title":"Read the project guide"}` creates one.
-- `GET /todos/{id}` reads one.
-- `PATCH /todos/{id}` with `{"completed":true}` or `{"title":"New title"}` updates one.
-- `DELETE /todos/{id}` deletes one.
-- `GET /health/live` and `/health/ready` report process and database health.
-- `GET /metrics` exposes Prometheus request counts and latency.
+```sh
+pytest -q
+ruff check app tests
+ruff format --check app tests
+pip-audit -r requirements-dev.txt
+```
 
-The service binds to port 8000. It has no authentication and is intended for a private learning environment, not direct public exposure.
+## Endpoints
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| `GET` | `/todos` | List todos |
+| `POST` | `/todos` | Add a todo, for example `{"title":"Read the guide"}` |
+| `GET` | `/todos/{id}` | Get one todo |
+| `PATCH` | `/todos/{id}` | Change its title or completion state |
+| `DELETE` | `/todos/{id}` | Delete it |
+| `GET` | `/health/live` | Check that the process is responding |
+| `GET` | `/health/ready` | Check that SQLite can be reached |
+| `GET` | `/metrics` | Read Prometheus request counts and durations |
+
+There is no login or user separation. Keep the API on your machine or inside a private cluster; it is not ready for public access.
